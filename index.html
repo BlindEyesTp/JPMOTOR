@@ -1,173 +1,215 @@
-
-<!-- saved from url=(0011)about:blank -->
-<html lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manual Generator</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <title>终极说明书合成工具 (JSON版)</title>
     <style>
-        :root {
-            --accent-color: #27ae60;
-            --bg-color: #f0f0f2;
-        }
-        body {
-            font-family: -apple-system, sans-serif;
-            background-color: var(--bg-color);
-            margin: 0; padding: 20px;
-            display: flex; flex-direction: column; align-items: center;
-        }
-        /* 控制面板 */
-        .ui-panel {
-            background: white; padding: 20px; border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            width: 100%; max-width: 900px; margin-bottom: 30px;
-        }
-        .file-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 15px;
-        }
-        .file-input { display: flex; flex-direction: column; font-size: 12px; }
-        .file-input label { font-weight: bold; margin-bottom: 5px; color: #555; }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #2c3e50; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
-        textarea {
-            width: 100%; height: 200px;
-            border: 1px solid #d2d2d7; border-radius: 8px;
-            padding: 12px; box-sizing: border-box;
-            font-family: "SF Mono", Menlo, monospace; font-size: 12px;
-            background: #fafafa;
-        }
-        .btns { margin-top: 15px; display: flex; gap: 10px; justify-content: flex-end; }
-        button {
-            padding: 10px 24px; border-radius: 20px; border: none;
-            cursor: pointer; font-weight: 500; transition: 0.2s;
-        }
-        .btn-pre { background: #e5e5e7; color: #1d1d1f; }
-        .btn-down { 
-            background: var(--accent-color); color: white; 
-            opacity: 0.3; pointer-events: none;
-        }
-        .btn-down.active { opacity: 1; pointer-events: auto; }
+        /* 左侧控制台 */
+        .sidebar { width: 380px; background: white; padding: 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.3); display: flex; flex-direction: column; overflow-y: auto; z-index: 10; }
+        h1 { font-size: 18px; color: #2c3e50; margin-top: 0; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        
+        .step { margin-bottom: 20px; background: #f8f9f9; padding: 15px; border-radius: 6px; border: 1px solid #e5e8e8; }
+        .step-title { font-weight: bold; font-size: 14px; color: #d35400; margin-bottom: 8px; }
+        .tips { font-size: 11px; color: #7f8c8d; margin-bottom: 10px; line-height: 1.4; }
+        
+        /* 图片上传按钮 */
+        .file-upload { display: flex; align-items: center; margin-bottom: 8px; }
+        .file-upload label { display: inline-block; width: 80px; font-size: 12px; color: #34495e; font-weight: bold;}
+        .file-upload input { flex: 1; font-size: 12px; }
+        
+        /* 代码输入框 */
+        textarea { width: 100%; height: 250px; padding: 10px; box-sizing: border-box; border: 1px solid #bdc3c7; border-radius: 4px; resize: vertical; font-family: monospace; font-size: 12px; background: #fdfefe; }
+        
+        /* 按钮 */
+        button { background-color: #3498db; color: white; border: none; padding: 12px 15px; font-size: 14px; border-radius: 4px; cursor: pointer; transition: background 0.3s; width: 100%; font-weight: bold; margin-top: 10px; }
+        button:hover { background-color: #2980b9; }
+        .btn-print { background-color: #27ae60; margin-top: 15px; }
+        .btn-print:hover { background-color: #1e8449; }
 
-        /* 预览区域样式修复 */
-        #render-wrapper {
-            background: #666; padding: 40px 0; width: 100%;
-            display: flex; justify-content: center; border-radius: 8px;
-        }
-        
-        /* 强制覆盖预览目标的内部样式 */
-        #render-target .page {
-            margin: 0 !important; /* 必须为 0，防止坐标计算偏移 */
-            box-shadow: none !important;
-            height: 296.5mm !important; 
-            overflow: hidden !important;
-            display: block !important;
-        }
+        /* 右侧预览区 */
+        .preview-area { flex: 1; display: flex; justify-content: center; align-items: flex-start; padding: 20px; overflow-y: auto; }
+        iframe { width: 210mm; height: 297mm; background: white; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
 
-<div class="ui-panel">
-    <div class="file-grid">
-        <div class="file-input">
-            <label>1. 主图 (main.jpeg)</label>
-            <input type="file" id="f_main" accept="image/*">
-        </div>
-        <div class="file-input">
-            <label>2. 尺寸图 (size.jpeg)</label>
-            <input type="file" id="f_size" accept="image/*">
-        </div>
-        <div class="file-input">
-            <label>3. 详情图 (detail.jpeg)</label>
-            <input type="file" id="f_detail" accept="image/*">
-        </div>
-    </div>
-
-    <textarea id="code-input" placeholder="请在此处粘贴您的 HTML 代码..."></textarea>
-
-    <div class="btns">
-        <button class="btn-pre" onclick="doPreview()">1. 预览渲染</button>
-        <button id="down-btn" class="btn-down" onclick="doDownload()">2. 生成单页 PDF</button>
-    </div>
-</div>
-
-<div id="render-wrapper">
-    <div id="render-target">
-        <div style="color:white; padding: 100px;">等待渲染内容...</div>
-    </div>
-</div>
-
-<script>
-    let urls = {};
-
-    function doPreview() {
-        const code = document.getElementById('code-input').value.trim();
-        const m = document.getElementById('f_main').files[0];
-        const s = document.getElementById('f_size').files[0];
-        const d = document.getElementById('f_detail').files[0];
-
-        if (!code || !m || !s || !d) {
-            alert("请检查：确保 HTML 代码已填入，且 3 张图片均已上传。");
-            return;
-        }
-
-        Object.values(urls).forEach(u => URL.revokeObjectURL(u));
-        urls['main.jpeg'] = URL.createObjectURL(m);
-        urls['size.jpeg'] = URL.createObjectURL(s);
-        urls['detail.jpeg'] = URL.createObjectURL(d);
-
-        let finalHtml = code;
-        for (const [name, url] of Object.entries(urls)) {
-            finalHtml = finalHtml.replace(new RegExp(name, 'g'), url);
-        }
-
-        const target = document.getElementById('render-target');
-        target.innerHTML = finalHtml;
-
-        const imgs = target.getElementsByTagName('img');
-        const promises = Array.from(imgs).map(img => {
-            return new Promise(resolve => {
-                if (img.complete) resolve();
-                else { img.onload = resolve; img.onerror = resolve; }
-            });
-        });
-
-        Promise.all(promises).then(() => {
-            document.getElementById('down-btn').classList.add('active');
-        });
-    }
-
-    async function doDownload() {
-        // 优先定位 .page 类元素
-        const element = document.querySelector('#render-target .page') || document.getElementById('render-target');
+    <div class="sidebar">
+        <h1>🚀 A4 说明书自动生成器</h1>
         
-        const opt = {
-            margin:       0,
-            filename:     'Manual_SinglePage.pdf',
-            image:        { type: 'jpeg', quality: 1.0 },
-            html2canvas:  { 
-                scale: 3, 
-                useCORS: true,
-                logging: false,
-                // 核心修复：强制忽略当前浏览器的滚动位置
-                scrollY: 0, 
-                scrollX: 0,
-                // 锁定捕获的宽度高度
-                width: element.offsetWidth,
-                height: element.offsetHeight
-            },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            pagebreak:    { mode: 'avoid-all' }
-        };
+        <div class="step">
+            <div class="step-title">1. 上传实拍图</div>
+            <div class="tips">无需重命名，直接选择本地图片。</div>
+            <div class="file-upload">
+                <label>主外观图:</label>
+                <input type="file" id="imgMain" accept="image/*">
+            </div>
+            <div class="file-upload">
+                <label>尺寸标注:</label>
+                <input type="file" id="imgSize" accept="image/*">
+            </div>
+            <div class="file-upload">
+                <label>安装细节:</label>
+                <input type="file" id="imgDetail" accept="image/*">
+            </div>
+        </div>
 
-        try {
-            // 在导出前将页面临时滚回到顶部也是一种稳妥做法
-            window.scrollTo(0, 0); 
-            await html2pdf().set(opt).from(element).save();
-        } catch (err) {
-            console.error(err);
-            alert("生成失败，请刷新页面重试。");
+        <div class="step">
+            <div class="step-title">2. 粘贴 AI 生成的 JSON 数据</div>
+            <div class="tips">请将 AI 按标准模板生成的 { } 代码粘贴至此。</div>
+            <textarea id="jsonInput" placeholder='{\n  "title": "产品名称",\n  ...\n}'></textarea>
+            <button onclick="generatePreview()">⚡ 渲染预览</button>
+        </div>
+
+        <div class="step">
+            <div class="step-title">3. 导出打印</div>
+            <div class="tips">打印设置请选择：<br>纸张: A4 | 边距: 无 | 勾选: 背景图形</div>
+            <button class="btn-print" onclick="printPDF()">🖨️ 保存为 A4 PDF</button>
+        </div>
+    </div>
+
+    <div class="preview-area">
+        <iframe id="previewFrame"></iframe>
+    </div>
+
+    <script>
+        const imagesBase64 = { main: '', size: '', detail: '' };
+
+        // 文件转 Base64
+        function handleFileUpload(inputId, key) {
+            document.getElementById(inputId).addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) { imagesBase64[key] = event.target.result; };
+                    reader.readAsDataURL(file);
+                }
+            });
         }
-    }
-</script>
+        handleFileUpload('imgMain', 'main');
+        handleFileUpload('imgSize', 'size');
+        handleFileUpload('imgDetail', 'detail');
 
+        function generatePreview() {
+            let jsonString = document.getElementById('jsonInput').value.trim();
+            if(!jsonString) { alert("请先粘贴 JSON 数据！"); return; }
 
-</body></html>
+            // 清理 AI 可能输出的 markdown 标记 (如 ```json ... ```)
+            jsonString = jsonString.replace(/```json/gi, '').replace(/```/g, '').trim();
+
+            let data;
+            try {
+                data = JSON.parse(jsonString);
+            } catch (e) {
+                alert("JSON 格式错误，请检查 AI 输出的内容是否完整且符合 JSON 规范！\n\n错误信息: " + e.message);
+                return;
+            }
+
+            // 处理图片占位符
+            const img1 = imagesBase64.main || 'https://placehold.co/400x400?text=Upload+Main+Image';
+            const img2 = imagesBase64.size || 'https://placehold.co/400x400?text=Upload+Size+Image';
+            const img3 = imagesBase64.detail || 'https://placehold.co/400x400?text=Upload+Detail+Image';
+
+            // 构建表格行
+            let specsHtml = '';
+            if(data.specs && data.specs.length > 0) {
+                data.specs.forEach(spec => {
+                    specsHtml += `<tr><th>${spec.key}</th><td>${spec.value}</td></tr>`;
+                });
+            }
+
+            // 构建特性列表
+            let featuresHtml = '';
+            if(data.features && data.features.length > 0) {
+                data.features.forEach(feat => {
+                    // 简单的正则，将冒号前的字加粗
+                    let formattedFeat = feat.replace(/^([^:]+:)/, '<strong>$1</strong>');
+                    featuresHtml += `<li>${formattedFeat}</li>`;
+                });
+            }
+
+            // 核心模板拼接
+            const template = `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; margin: 0; padding: 0; background: none; }
+                    .page { width: 210mm; height: 297mm; padding: 15mm 20mm; margin: 0; box-sizing: border-box; overflow: hidden; position: relative; }
+                    header { border-bottom: 3px solid ${data.themeColor || '#3498db'}; padding-bottom: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-end; }
+                    h1 { font-size: 22px; margin: 0; text-transform: uppercase; color: #2c3e50; letter-spacing: 1px; line-height: 1; }
+                    .subtitle { font-size: 13px; color: #7f8c8d; margin-top: 5px; font-weight: normal; }
+                    .header-info { text-align: right; font-size: 11px; color: #555; line-height: 1.4; }
+                    .content-grid { display: grid; grid-template-columns: 38% 58%; gap: 4%; }
+                    h2 { font-size: 13px; color: ${data.themeColor || '#3498db'}; border-left: 4px solid ${data.themeColor || '#3498db'}; padding-left: 8px; margin-top: 12px; margin-bottom: 10px; text-transform: uppercase; }
+                    .image-box { position: relative; width: 100%; aspect-ratio: 1 / 1; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px; background: #fff; overflow: hidden; }
+                    .image-box img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
+                    table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 12px; }
+                    th, td { padding: 5px 6px; border-bottom: 1px solid #eee; text-align: left; vertical-align: top; }
+                    th { background-color: ${data.lightThemeColor || '#ebf5fb'}; color: #2c3e50; font-weight: bold; width: 32%; }
+                    .info-box { background: #fdfefe; border: 1px dashed ${data.themeColor || '#3498db'}; padding: 10px; border-radius: 4px; font-size: 10px; margin-bottom: 12px; line-height: 1.5; color: #444; }
+                    ul { padding-left: 18px; margin: 0; font-size: 10px; color: #444; }
+                    li { margin-bottom: 5px; line-height: 1.4; }
+                    footer { position: absolute; bottom: 12mm; left: 20mm; right: 20mm; text-align: center; font-size: 9px; color: #aaa; border-top: 1px solid #eee; padding-top: 8px; }
+                    @media print { @page { margin: 0; size: A4; } }
+                </style>
+            </head>
+            <body>
+                <div class="page">
+                    <header>
+                        <div>
+                            <h1>${data.title || 'Product Title'}</h1>
+                            <div class="subtitle">${data.subtitle || ''}</div>
+                        </div>
+                        <div class="header-info">
+                            <strong>${data.headerInfo1 || ''}</strong><br>
+                            <strong>${data.headerInfo2 || ''}</strong>
+                        </div>
+                    </header>
+                    <div class="content-grid">
+                        <div class="left-col">
+                            <h2 style="margin-top: 0;">Product View</h2>
+                            <div class="image-box"><img src="${img1}"></div>
+                            <h2>Dimensions</h2>
+                            <div class="image-box"><img src="${img2}"></div>
+                            <h2>Detail View</h2>
+                            <div class="image-box"><img src="${img3}"></div>
+                        </div>
+                        <div class="right-col">
+                            <h2 style="margin-top: 0;">Specifications</h2>
+                            <table>${specsHtml}</table>
+                            <h2>${data.fitmentTitle || 'Fitment Guide'}</h2>
+                            <div class="info-box">${data.fitmentDesc || ''}</div>
+                            <h2>${data.featureTitle || 'Key Features'}</h2>
+                            <ul>${featuresHtml}</ul>
+                            ${data.note ? `<div style="margin-top: 15px; font-size: 9px; color: #7f8c8d; border-left: 2px solid #bdc3c7; padding-left: 8px; background: #fdfefe; padding-top: 5px; padding-bottom: 5px;"><strong>Note:</strong> ${data.note}</div>` : ''}
+                        </div>
+                    </div>
+                    <footer>Professional Motorcycle Parts | Standard Specification Manual</footer>
+                </div>
+            </body>
+            </html>
+            `;
+
+            const iframe = document.getElementById('previewFrame');
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write(template);
+            doc.close();
+        }
+
+        function printPDF() {
+            const iframe = document.getElementById('previewFrame');
+            if(iframe.src === 'about:blank' || !document.getElementById('jsonInput').value) {
+                alert("请先生成预览！");
+                return;
+            }
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+        }
+    </script>
+</body>
+</html>
